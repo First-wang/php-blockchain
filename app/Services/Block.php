@@ -26,16 +26,22 @@ class Block
      */
     public $hash;
 
+    /**
+     * @var int $nonce
+     */
+    public $nonce;
+
     public function __construct(string $data, string $prevBlockHash)
     {
         $this->prevBlockHash = $prevBlockHash;
         $this->data = $data;
         $this->timestamp = time();
-        $this->hash = $this->setHash();
+
+        $pow = new ProofOfWork($this);
+        list($nonce, $hash) = $pow->run();
+
+        $this->nonce = $nonce;
+        $this->hash = $hash;
     }
 
-    public function setHash(): string
-    {
-        return hash('sha256', implode('', [$this->timestamp, $this->prevBlockHash, $this->data]));
-    }
 }
