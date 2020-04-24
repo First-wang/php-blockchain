@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use Carbon\Carbon;
 
 class Block
 {
@@ -44,4 +43,8 @@ class Block
         $this->hash = $hash;
     }
 
+    public static function NewGenesisBlock()
+    {
+        return $block = new Block('Genesis Block', '');
+    }
 }
