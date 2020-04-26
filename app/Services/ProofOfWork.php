@@ -31,9 +31,9 @@ class ProofOfWork
     {
         return implode('', [
             $this->block->prevBlockHash,
-            $this->block->data,
+            $this->block->hashTransactions(),
             $this->block->timestamp,
-            $this->block->data,
+            config('blockchain.targetBits'),
             $nonce
         ]);
     }

@@ -1,5 +1,5 @@
 <?php
 
 return [
-    'targetBits' => 24
+    'targetBits' => 20
 ];
