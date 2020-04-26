@@ -35,13 +35,13 @@ class BlockChain implements \Iterator
 
     /**
      * @param array $transactions
-     * @throws \Exception
      */
     public function mineBlock(array $transactions)
     {
         $lastHash = Cache::get('l');
         if (is_null($lastHash)) {
-            throw new \Exception('还没有区块链，请先初始化');
+            echo "还没有区块链，请先初始化";
+            exit;
         }
 
         $block = new Block($transactions, $lastHash);
@@ -71,13 +71,11 @@ class BlockChain implements \Iterator
         return new BlockChain($tips);
     }
 
-    /**
-     * @throws \Exception
-     */
     public static function GetBlockChain(): BlockChain
     {
         if (!Cache::has('l')) {
-            throw new \Exception('还没有区块链，请先初始化');
+            echo "还没有区块链，请先初始化";
+            exit;
         }
 
         return new BlockChain(Cache::get('l'));
@@ -127,10 +125,35 @@ class BlockChain implements \Iterator
         return $unspentTXs;
     }
 
+    /**
+     * @param string $address
+     * @return array
+     */
+    public function findSpentOutputs(string $address): array
+    {
+        $spentTXOs = [];
+        /**
+         * @var Block $block
+         */
+        foreach ($this as $block) {
+            foreach ($block->transactions as $tx) {
+                if (!$tx->isCoinbase()) {
+                    foreach ($tx->txInputs as $txInput) {
+                        if ($txInput->canUnlockOutputWith($address)) {
+                            $spentTXOs[$txInput->txId][] = $txInput->vOut;
+                        }
+                    }
+                }
+            }
+        }
+        return $spentTXOs;
+    }
+
     public function findSpendableOutputs(string $address, int $amount): array
     {
         $unspentOutputs = [];
         $unspentTXs = $this->findUnspentTransactions($address);
+        $spentTXOs = $this->findSpentOutputs($address);
         $accumulated = 0;
 
         /**
@@ -140,6 +163,15 @@ class BlockChain implements \Iterator
             $txId = $tx->id;
 
             foreach ($tx->txOutputs as $outIdx => $txOutput) {
+                if (isset($spentTXOs[$txId])) {
+                    foreach ($spentTXOs[$txId] as $spentOutIdx) {
+                        if ($spentOutIdx == $outIdx) {
+                            // 说明这个tx的这个outIdx被花费过
+                            continue 2;
+                        }
+                    }
+                }
+
                 if ($txOutput->canBeUnlockedWith($address) && $accumulated < $amount) {
                     $accumulated += $txOutput->value;
                     $unspentOutputs[$txId][] = $outIdx;
@@ -160,9 +192,20 @@ class BlockChain implements \Iterator
     {
         $UTXOs = [];
         $unspentTXs = $this->findUnspentTransactions($address);
+        $spentTXOs = $this->findSpentOutputs($address);
 
         foreach ($unspentTXs as $transaction) {
-            foreach ($transaction->txOutputs as $output) {
+            $txId = $transaction->id;
+            foreach ($transaction->txOutputs as $outIdx => $output) {
+                if (isset($spentTXOs[$txId])) {
+                    foreach ($spentTXOs[$txId] as $spentOutIdx) {
+                        if ($spentOutIdx == $outIdx) {
+                            // 说明这个tx的这个outIdx被花费过
+                            continue 2;
+                        }
+                    }
+                }
+
                 if ($output->canBeUnlockedWith($address)) {
                     $UTXOs[] = $output;
                 }

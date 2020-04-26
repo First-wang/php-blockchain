@@ -48,13 +48,13 @@ class Transaction
      * @param int $amount
      * @param BlockChain $bc
      * @return Transaction
-     * @throws \Exception
      */
     public static function NewUTXOTransaction(string $from, string $to, int $amount, BlockChain $bc): Transaction
     {
         list($acc, $validOutputs) = $bc->findSpendableOutputs($from, $amount);
         if ($acc < $amount) {
-            throw new \Exception('余额不足');
+            echo "余额不足";
+            exit;
         }
 
         $inputs = [];
