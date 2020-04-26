@@ -12,7 +12,7 @@ class PrintChain extends Command
      *
      * @var string
      */
-    protected $signature = 'printblock';
+    protected $signature = 'printchain';
 
     /**
      * The console command description.
