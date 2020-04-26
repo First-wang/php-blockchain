@@ -5,21 +5,21 @@ namespace App\Commands;
 use App\Services\BlockChain;
 use Illuminate\Console\Command;
 
-class InitBlockChain extends Command
+class Balance extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'init-blockchain {address : 创世区块coinbase地址}';
+    protected $signature = 'getbalance {address}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = '初始化一个区块链，如果没有则创建';
+    protected $description = '查询给定地址余额';
 
     /**
      * Create a new command instance.
@@ -35,13 +35,19 @@ class InitBlockChain extends Command
      * Execute the console command.
      *
      * @return mixed
+     * @throws \Exception
      */
     public function handle()
     {
         $address = $this->argument('address');
-        $this->task('init blockchain', function () use ($address) {
-            BlockChain::NewBlockChain($address);
-            return true;
-        });
+
+        $bc = BlockChain::GetBlockChain();
+        $UTXOs = $bc->findUTXO($address);
+
+        $balance = 0;
+        foreach ($UTXOs as $output) {
+            $balance += $output->value;
+        }
+        $this->info(sprintf("balance of address '%s' is: %s", $address, $balance));
     }
 }

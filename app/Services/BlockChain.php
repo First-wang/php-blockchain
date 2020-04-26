@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Cache;
 
 class BlockChain implements \Iterator
 {
+    const genesisCoinbaseData = 'The Times 03/Jan/2009 Chancellor on brink of second bailout for banks';
+
     /**
      * // 存放最后一个块的hash
      * @var string $tips
@@ -31,28 +33,34 @@ class BlockChain implements \Iterator
         $this->tips = $tips;
     }
 
-    // 加入一个块到区块链中
-    public function addBlock(string $data)
+    /**
+     * @param array $transactions
+     * @throws \Exception
+     */
+    public function mineBlock(array $transactions)
     {
-        // 获取最后一个块
-        $prevBlock = unserialize(Cache::get($this->tips));
+        $lastHash = Cache::get('l');
+        if (is_null($lastHash)) {
+            throw new \Exception('还没有区块链，请先初始化');
+        }
 
-        $newBlock = new Block($data, $prevBlock->hash);
+        $block = new Block($transactions, $lastHash);
 
-        // 存入最后一个块到数据库，并更新 l 和 tips
-        Cache::put($newBlock->hash, serialize($newBlock));
-        Cache::put('l', $newBlock->hash);
-        $this->tips = $newBlock->hash;
+        $this->tips = $block->hash;
+        Cache::put('l', $block->hash);
+        Cache::put($block->hash, serialize($block));
     }
 
     // 新建区块链
-    public static function NewBlockChain(): BlockChain
+    public static function NewBlockChain(string $address): BlockChain
     {
         if (Cache::has('l')) {
             // 存在区块链
             $tips = Cache::get('l');
         } else {
-            $genesis = Block::NewGenesisBlock();
+            $coinbase = Transaction::NewCoinbaseTX($address, self::genesisCoinbaseData);
+
+            $genesis = Block::NewGenesisBlock($coinbase);
 
             Cache::put($genesis->hash, serialize($genesis));
 
@@ -62,6 +70,148 @@ class BlockChain implements \Iterator
         }
         return new BlockChain($tips);
     }
+
+    /**
+     * @throws \Exception
+     */
+    public static function GetBlockChain(): BlockChain
+    {
+        if (!Cache::has('l')) {
+            throw new \Exception('还没有区块链，请先初始化');
+        }
+
+        return new BlockChain(Cache::get('l'));
+    }
+
+    /**
+     * 找出地址的未花费交易
+     * @param string $address
+     * @return Transaction[]
+     */
+    public function findUnspentTransactions(string $address): array
+    {
+        $unspentTXs = [];
+        $spentTXOs = [];
+
+        /**
+         * @var Block $block
+         */
+        foreach ($this as $block) {
+
+            foreach ($block->transactions as $tx) {
+                $txId = $tx->id;
+
+                foreach ($tx->txOutputs as $outIdx => $txOutput) {
+                    if (isset($spentTXOs[$txId])) {
+                        foreach ($spentTXOs[$txId] as $spentOutIdx) {
+                            if ($spentOutIdx == $outIdx) {
+                                continue 2;
+                            }
+                        }
+                    }
+
+                    if ($txOutput->canBeUnlockedWith($address)) {
+                        $unspentTXs[$txId] = $tx;
+                    }
+                }
+
+                if (!$tx->isCoinbase()) {
+                    foreach ($tx->txInputs as $txInput) {
+                        if ($txInput->canUnlockOutputWith($address)) {
+                            $spentTXOs[$txInput->txId][] = $txInput->vOut;
+                        }
+                    }
+                }
+            }
+        }
+        return $unspentTXs;
+    }
+
+    public function findSpendableOutputs(string $address, int $amount): array
+    {
+        $unspentOutputs = [];
+        $unspentTXs = $this->findUnspentTransactions($address);
+        $accumulated = 0;
+
+        /**
+         * @var Transaction $tx
+         */
+        foreach ($unspentTXs as $tx) {
+            $txId = $tx->id;
+
+            foreach ($tx->txOutputs as $outIdx => $txOutput) {
+                if ($txOutput->canBeUnlockedWith($address) && $accumulated < $amount) {
+                    $accumulated += $txOutput->value;
+                    $unspentOutputs[$txId][] = $outIdx;
+                    if ($accumulated >= $amount) {
+                        break 2;
+                    }
+                }
+            }
+        }
+        return [$accumulated, $unspentOutputs];
+    }
+
+    /**
+     * @param string $address
+     * @return TXOutput[]
+     */
+    public function findUTXO(string $address): array
+    {
+        $UTXOs = [];
+        $unspentTXs = $this->findUnspentTransactions($address);
+
+        foreach ($unspentTXs as $transaction) {
+            foreach ($transaction->txOutputs as $output) {
+                if ($output->canBeUnlockedWith($address)) {
+                    $UTXOs[] = $output;
+                }
+            }
+        }
+        return $UTXOs;
+    }
+
+    /**
+     * @param string $address
+     * @return TXOutput[]
+     */
+//    public function findAllUTXO(string $address): array
+//    {
+//        $spentTXOs = [];
+//        $UTXOs = [];
+//
+//        /**
+//         * @var Block $block
+//         */
+//        foreach ($this as $block) {
+//            foreach ($block->transactions as $tx) {
+//                $txId = $tx->id;
+//
+//                foreach ($tx->txOutputs as $outIdx => $txOutput) {
+//                    if (isset($spentTXOs[$txId])) {
+//                        foreach ($spentTXOs[$txId] as $spentOutIdx) {
+//                            if ($spentOutIdx == $outIdx) {
+//                                continue 2;
+//                            }
+//                        }
+//                    }
+//
+//                    if ($txOutput->canBeUnlockedWith($address)) {
+//                        $UTXOs[] = $txOutput;
+//                    }
+//                }
+//
+//                if (!$tx->isCoinbase()) {
+//                    foreach ($tx->txInputs as $txInput) {
+//                        if ($txInput->canUnlockOutputWith($address)) {
+//                            $spentTXOs[$txInput->txId][] = $txInput->vOut;
+//                        }
+//                    }
+//                }
+//            }
+//        }
+//        return $UTXOs;
+//    }
 
     /**
      * @inheritDoc

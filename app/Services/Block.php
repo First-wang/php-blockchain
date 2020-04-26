@@ -11,9 +11,9 @@ class Block
     public $timestamp;
 
     /**
-     * @var string $data
+     * @var Transaction[] $transactions
      */
-    public $data;
+    public $transactions;
 
     /**
      * @var string $prevBlockHash
@@ -30,10 +30,10 @@ class Block
      */
     public $nonce;
 
-    public function __construct(string $data, string $prevBlockHash)
+    public function __construct(array $transactions, string $prevBlockHash)
     {
         $this->prevBlockHash = $prevBlockHash;
-        $this->data = $data;
+        $this->transactions = $transactions;
         $this->timestamp = time();
 
         $pow = new ProofOfWork($this);
@@ -43,8 +43,17 @@ class Block
         $this->hash = $hash;
     }
 
-    public static function NewGenesisBlock()
+    public static function NewGenesisBlock(Transaction $coinbase)
     {
-        return $block = new Block('Genesis Block', '');
+        return $block = new Block([$coinbase], '');
+    }
+
+    public function hashTransactions(): string
+    {
+        $txsHashArr = [];
+        foreach ($this->transactions as $transaction) {
+            $txsHashArr[] = $transaction->id;
+        }
+        return hash('sha256', implode('', $txsHashArr));
     }
 }
