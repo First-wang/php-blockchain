@@ -18,7 +18,9 @@
     "require": {
         "php": "^7.2.5",
         "ext-gmp": "*",
+        "bitwasp/bitcoin": "^1.0",
         "laravel-zero/framework": "^7.0",
+        "mdanter/ecc": "^0.5.2",
         "nunomaduro/laravel-console-menu": "^3.0"
     },
     "require-dev": {

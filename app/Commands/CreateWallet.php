@@ -2,25 +2,24 @@
 
 namespace App\Commands;
 
-use App\Services\BlockChain;
 use App\Services\Wallets;
 use Illuminate\Console\Command;
 
-class Balance extends Command
+class CreateWallet extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'getbalance {address}';
+    protected $signature = 'createwallet';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = '查询给定地址余额';
+    protected $description = '创建一个钱包';
 
     /**
      * Create a new command instance.
@@ -36,22 +35,14 @@ class Balance extends Command
      * Execute the console command.
      *
      * @return mixed
-     * @throws \Exception
      */
     public function handle()
     {
-        $address = $this->argument('address');
-
-        $bc = BlockChain::GetBlockChain();
-
         $wallets = new Wallets();
-        $wallet = $wallets->getWallet($address);
-        $UTXOs = $bc->findUTXO($wallet->getPubKeyHash());
 
-        $balance = 0;
-        foreach ($UTXOs as $output) {
-            $balance += $output->value;
-        }
-        $this->info(sprintf("balance of address '%s' is: %s", $address, $balance));
+        $address = $wallets->createWallet();
+        $wallets->saveToFile();
+
+        $this->info("Your new address: {$address}");
     }
 }

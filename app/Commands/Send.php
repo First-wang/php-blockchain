@@ -36,6 +36,7 @@ class Send extends Command
      * Execute the console command.
      *
      * @return mixed
+     * @throws \Exception
      */
     public function handle()
     {
@@ -46,8 +47,8 @@ class Send extends Command
         $amount = $arguments['amount'];
 
         $bc = BlockChain::GetBlockChain();
-
         $tx = Transaction::NewUTXOTransaction($from, $to, $amount, $bc);
+
         $bc->mineBlock([$tx]);
 
         $this->info('send success');
@@ -55,7 +56,6 @@ class Send extends Command
             $this->info("{$block->hash}");
             break;
         }
-
 
     }
 }

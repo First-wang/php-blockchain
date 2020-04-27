@@ -2,24 +2,24 @@
 
 namespace App\Commands;
 
-use App\Services\BlockChain;
+use App\Services\Wallets;
 use Illuminate\Console\Command;
 
-class AddBlock extends Command
+class ListAddresses extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'addblock {data : 区块记录的数据}';
+    protected $signature = 'listaddresses';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = '向区块链中添加一个区块';
+    protected $description = '钱包所有地址';
 
     /**
      * Create a new command instance.
@@ -38,11 +38,15 @@ class AddBlock extends Command
      */
     public function handle()
     {
-        $data = $this->argument('data');
-        $this->task('mining block:', function () use ($data) {
-            $bc = BlockChain::NewBlockChain();
-            $bc->addBlock($data);
-            return true;
-        });
+        $wallets = new Wallets();
+
+        $addresses = $wallets->getAddresses();
+
+        foreach ($addresses as $address) {
+
+
+
+            $this->info($address);
+        }
     }
 }

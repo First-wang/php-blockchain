@@ -4,6 +4,8 @@
 namespace App\Services;
 
 
+use BitWasp\Bitcoin\Key\Factory\PublicKeyFactory;
+
 class TXInput
 {
     /**
@@ -17,19 +19,31 @@ class TXInput
     public $vOut;
 
     /**
-     * @var string $scriptSig
+     * @var string $signature
      */
-    public $scriptSig;
+    public $signature;
 
-    public function __construct(string $txId, int $vOut, string $scriptSig)
+    /**
+     * @var string $pubKey
+     */
+    public $pubKey;
+
+    public function __construct(string $txId, int $vOut, string $signature, string $pubKey)
     {
         $this->txId = $txId;
         $this->vOut = $vOut;
-        $this->scriptSig = $scriptSig;
+        $this->signature = $signature;
+        $this->pubKey = $pubKey;
     }
 
-    public function canUnlockOutputWith(string $unlockingData): bool
+    /**
+     * @param string $pubKeyHash
+     * @return bool
+     * @throws \Exception
+     */
+    public function usesKey(string $pubKeyHash): bool
     {
-        return $this->scriptSig == $unlockingData;
+        $pubKeyIns = (new PublicKeyFactory())->fromHex($this->pubKey);
+        return $pubKeyIns->getPubKeyHash()->getHex() == $pubKeyHash;
     }
 }

@@ -34,7 +34,8 @@ class BlockChain implements \Iterator
     }
 
     /**
-     * @param array $transactions
+     * @param Transaction[] $transactions
+     * @throws \Exception
      */
     public function mineBlock(array $transactions)
     {
@@ -42,6 +43,13 @@ class BlockChain implements \Iterator
         if (is_null($lastHash)) {
             echo "还没有区块链，请先初始化";
             exit;
+        }
+
+        foreach ($transactions as $tx) {
+            if (!$this->verifyTransaction($tx)) {
+                echo "交易验证失败";
+                exit(0);
+            }
         }
 
         $block = new Block($transactions, $lastHash);
@@ -83,10 +91,11 @@ class BlockChain implements \Iterator
 
     /**
      * 找出地址的未花费交易
-     * @param string $address
+     * @param string $pubKeyHash
      * @return Transaction[]
+     * @throws \Exception
      */
-    public function findUnspentTransactions(string $address): array
+    public function findUnspentTransactions(string $pubKeyHash): array
     {
         $unspentTXs = [];
         $spentTXOs = [];
@@ -108,14 +117,14 @@ class BlockChain implements \Iterator
                         }
                     }
 
-                    if ($txOutput->canBeUnlockedWith($address)) {
+                    if ($txOutput->isLockedWithKey($pubKeyHash)) {
                         $unspentTXs[$txId] = $tx;
                     }
                 }
 
                 if (!$tx->isCoinbase()) {
                     foreach ($tx->txInputs as $txInput) {
-                        if ($txInput->canUnlockOutputWith($address)) {
+                        if ($txInput->usesKey($pubKeyHash)) {
                             $spentTXOs[$txInput->txId][] = $txInput->vOut;
                         }
                     }
@@ -126,10 +135,11 @@ class BlockChain implements \Iterator
     }
 
     /**
-     * @param string $address
+     * @param string $pubKeyHash
      * @return array
+     * @throws \Exception
      */
-    public function findSpentOutputs(string $address): array
+    public function findSpentOutputs(string $pubKeyHash): array
     {
         $spentTXOs = [];
         /**
@@ -139,7 +149,7 @@ class BlockChain implements \Iterator
             foreach ($block->transactions as $tx) {
                 if (!$tx->isCoinbase()) {
                     foreach ($tx->txInputs as $txInput) {
-                        if ($txInput->canUnlockOutputWith($address)) {
+                        if ($txInput->usesKey($pubKeyHash)) {
                             $spentTXOs[$txInput->txId][] = $txInput->vOut;
                         }
                     }
@@ -149,11 +159,17 @@ class BlockChain implements \Iterator
         return $spentTXOs;
     }
 
-    public function findSpendableOutputs(string $address, int $amount): array
+    /**
+     * @param string $pubKeyHash
+     * @param int $amount
+     * @return array
+     * @throws \Exception
+     */
+    public function findSpendableOutputs(string $pubKeyHash, int $amount): array
     {
         $unspentOutputs = [];
-        $unspentTXs = $this->findUnspentTransactions($address);
-        $spentTXOs = $this->findSpentOutputs($address);
+        $unspentTXs = $this->findUnspentTransactions($pubKeyHash);
+        $spentTXOs = $this->findSpentOutputs($pubKeyHash);
         $accumulated = 0;
 
         /**
@@ -172,7 +188,7 @@ class BlockChain implements \Iterator
                     }
                 }
 
-                if ($txOutput->canBeUnlockedWith($address) && $accumulated < $amount) {
+                if ($txOutput->isLockedWithKey($pubKeyHash) && $accumulated < $amount) {
                     $accumulated += $txOutput->value;
                     $unspentOutputs[$txId][] = $outIdx;
                     if ($accumulated >= $amount) {
@@ -185,14 +201,15 @@ class BlockChain implements \Iterator
     }
 
     /**
-     * @param string $address
+     * @param string $pubKeyHash
      * @return TXOutput[]
+     * @throws \Exception
      */
-    public function findUTXO(string $address): array
+    public function findUTXO(string $pubKeyHash): array
     {
         $UTXOs = [];
-        $unspentTXs = $this->findUnspentTransactions($address);
-        $spentTXOs = $this->findSpentOutputs($address);
+        $unspentTXs = $this->findUnspentTransactions($pubKeyHash);
+        $spentTXOs = $this->findSpentOutputs($pubKeyHash);
 
         foreach ($unspentTXs as $transaction) {
             $txId = $transaction->id;
@@ -206,7 +223,7 @@ class BlockChain implements \Iterator
                     }
                 }
 
-                if ($output->canBeUnlockedWith($address)) {
+                if ($output->isLockedWithKey($pubKeyHash)) {
                     $UTXOs[] = $output;
                 }
             }
@@ -215,46 +232,54 @@ class BlockChain implements \Iterator
     }
 
     /**
-     * @param string $address
-     * @return TXOutput[]
+     * @param Transaction $tx
+     * @param string $privateKey
+     * @throws \Exception
      */
-//    public function findAllUTXO(string $address): array
-//    {
-//        $spentTXOs = [];
-//        $UTXOs = [];
-//
-//        /**
-//         * @var Block $block
-//         */
-//        foreach ($this as $block) {
-//            foreach ($block->transactions as $tx) {
-//                $txId = $tx->id;
-//
-//                foreach ($tx->txOutputs as $outIdx => $txOutput) {
-//                    if (isset($spentTXOs[$txId])) {
-//                        foreach ($spentTXOs[$txId] as $spentOutIdx) {
-//                            if ($spentOutIdx == $outIdx) {
-//                                continue 2;
-//                            }
-//                        }
-//                    }
-//
-//                    if ($txOutput->canBeUnlockedWith($address)) {
-//                        $UTXOs[] = $txOutput;
-//                    }
-//                }
-//
-//                if (!$tx->isCoinbase()) {
-//                    foreach ($tx->txInputs as $txInput) {
-//                        if ($txInput->canUnlockOutputWith($address)) {
-//                            $spentTXOs[$txInput->txId][] = $txInput->vOut;
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//        return $UTXOs;
-//    }
+    public function signTransaction(Transaction $tx, string $privateKey)
+    {
+        $prevTXs = [];
+        foreach ($tx->txInputs as $txInput) {
+            $prevTx = $this->findTransaction($txInput->txId);
+            $prevTXs[$prevTx->id] = $prevTx;
+        }
+        $tx->sign($privateKey, $prevTXs);
+    }
+
+    /**
+     * @param Transaction $tx
+     * @return bool
+     * @throws \Exception
+     */
+    public function verifyTransaction(Transaction $tx): bool
+    {
+        $prevTXs = [];
+        foreach ($tx->txInputs as $txInput) {
+            $prevTx = $this->findTransaction($txInput->txId);
+            $prevTXs[$prevTx->id] = $prevTx;
+        }
+        return $tx->verify($prevTXs);
+    }
+
+    /**
+     * @param string $txId
+     * @return Transaction
+     */
+    public function findTransaction(string $txId): Transaction
+    {
+        /**
+         * @var Block $block
+         */
+        foreach ($this as $block) {
+            foreach ($block->transactions as $tx) {
+                if ($tx->id == $txId) {
+                    return $tx;
+                }
+            }
+        }
+        echo "Transaction is not found";
+        exit(0);
+    }
 
     /**
      * @inheritDoc
