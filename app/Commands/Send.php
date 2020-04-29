@@ -4,6 +4,7 @@ namespace App\Commands;
 
 use App\Services\BlockChain;
 use App\Services\Transaction;
+use App\Services\UTXOSet;
 use Illuminate\Console\Command;
 
 class Send extends Command
@@ -36,6 +37,7 @@ class Send extends Command
      * Execute the console command.
      *
      * @return mixed
+     * @throws \Psr\SimpleCache\InvalidArgumentException
      * @throws \Exception
      */
     public function handle()
@@ -46,16 +48,19 @@ class Send extends Command
         $to = $arguments['to'];
         $amount = $arguments['amount'];
 
-        $bc = BlockChain::GetBlockChain();
-        $tx = Transaction::NewUTXOTransaction($from, $to, $amount, $bc);
+        $this->task('send tx', function () use ($from, $to, $amount) {
+            $bc = BlockChain::GetBlockChain();
+            $utxoSet = new UTXOSet($bc);
 
-        $bc->mineBlock([$tx]);
+            $tx = Transaction::NewUTXOTransaction($from, $to, $amount,$utxoSet);
+            $coinbaseTx = Transaction::NewCoinbaseTX($from, '');
+
+            $block = $bc->mineBlock([$coinbaseTx, $tx]);
+            $utxoSet->update($block);
+
+            return true;
+        });
 
         $this->info('send success');
-        foreach ($bc as $block) {
-            $this->info("{$block->hash}");
-            break;
-        }
-
     }
 }

@@ -30,10 +30,16 @@ class Transaction
      */
     public $txOutputs;
 
+    /**
+     * @var int $timestamp
+     */
+    public $timestamp;
+
     public function __construct(array $txInputs, array $txOutputs)
     {
         $this->txInputs = $txInputs;
         $this->txOutputs = $txOutputs;
+        $this->timestamp = time();
         $this->setId();
     }
 
@@ -52,16 +58,16 @@ class Transaction
      * @param string $from
      * @param string $to
      * @param int $amount
-     * @param BlockChain $bc
+     * @param UTXOSet $utxoSet
      * @return Transaction
      * @throws \Exception
      */
-    public static function NewUTXOTransaction(string $from, string $to, int $amount, BlockChain $bc): Transaction
+    public static function NewUTXOTransaction(string $from, string $to, int $amount, UTXOSet $utxoSet): Transaction
     {
         $wallets = new Wallets();
         $wallet = $wallets->getWallet($from);
 
-        list($acc, $validOutputs) = $bc->findSpendableOutputs($wallet->getPubKeyHash(), $amount);
+        list($acc, $validOutputs) = $utxoSet->findSpendableOutputs($wallet->getPubKeyHash(), $amount);
         if ($acc < $amount) {
             echo "余额不足";
             exit;
@@ -84,7 +90,7 @@ class Transaction
             $outputs[] = TXOutput::NewTxOutput($acc - $amount, $from);
         }
         $tx = new Transaction($inputs, $outputs);
-        $bc->signTransaction($tx, $wallet->privateKey);
+        $utxoSet->blockChain->signTransaction($tx, $wallet->privateKey);
         return $tx;
     }
 

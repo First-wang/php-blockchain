@@ -54,6 +54,8 @@ class Block
         foreach ($this->transactions as $transaction) {
             $txsHashArr[] = $transaction->id;
         }
-        return hash('sha256', implode('', $txsHashArr));
+
+        $mTree = new MerkleTree($txsHashArr);
+        return $mTree->rootNode->data;
     }
 }

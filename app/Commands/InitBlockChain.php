@@ -3,6 +3,7 @@
 namespace App\Commands;
 
 use App\Services\BlockChain;
+use App\Services\UTXOSet;
 use Illuminate\Console\Command;
 
 class InitBlockChain extends Command
@@ -40,7 +41,8 @@ class InitBlockChain extends Command
     {
         $address = $this->argument('address');
         $this->task('init blockchain', function () use ($address) {
-            BlockChain::NewBlockChain($address);
+            $bc = BlockChain::NewBlockChain($address);
+            (new UTXOSet($bc))->reindex();
             return true;
         });
     }

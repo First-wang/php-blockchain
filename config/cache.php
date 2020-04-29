@@ -1,14 +1,19 @@
 <?php
 
 return [
-    'default' => 'file',
+    'default' => 'blockBucket',
 
     'stores' => [
 
-        'file' => [
+        'blockBucket' => [
             'driver' => 'file',
-            'path' => storage_path(),
+            'path' => storage_path() . '/blockBucket',
         ],
+
+        'utxoBucket' => [
+            'driver' => 'file',
+            'path' => storage_path() . '/utxoBucket',
+        ]
 
     ],
 

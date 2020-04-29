@@ -3,6 +3,7 @@
 namespace App\Commands;
 
 use App\Services\BlockChain;
+use App\Services\UTXOSet;
 use App\Services\Wallets;
 use Illuminate\Console\Command;
 
@@ -43,10 +44,12 @@ class Balance extends Command
         $address = $this->argument('address');
 
         $bc = BlockChain::GetBlockChain();
+        $utxoSet = new UTXOSet($bc);
 
         $wallets = new Wallets();
         $wallet = $wallets->getWallet($address);
-        $UTXOs = $bc->findUTXO($wallet->getPubKeyHash());
+
+        $UTXOs = $utxoSet->findUTXO($wallet->getPubKeyHash());
 
         $balance = 0;
         foreach ($UTXOs as $output) {
