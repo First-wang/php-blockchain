@@ -31,6 +31,10 @@ class Wallets
     {
         $walletsSer = serialize($this->wallets);
 
+        if (!is_dir(storage_path())) {
+            mkdir(storage_path(), 0777, true);
+        }
+
         file_put_contents(storage_path() . '/walletFile', $walletsSer);
     }
 
