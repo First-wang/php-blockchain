@@ -14,7 +14,7 @@
 - [基本原型](https://learnku.com/articles/43913)
 - [工作量证明](https://learnku.com/articles/43914)
 - [数据持久化与CLI](https://learnku.com/articles/43917)
-- 交易1
+- [交易1](https://learnku.com/articles/43919)
 - 地址、密钥
 - 交易2
 
