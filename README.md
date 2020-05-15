@@ -15,7 +15,7 @@
 - [工作量证明](https://learnku.com/articles/43914)
 - [数据持久化与CLI](https://learnku.com/articles/43917)
 - [交易1](https://learnku.com/articles/43919)
-- 地址、密钥
+- [钱包、地址与密钥](https://learnku.com/articles/43954)
 - 交易2
 
 ## 安装
@@ -49,7 +49,5 @@ php blockchain
 ## 最后
 
 由于水平有限，如有错误之处，欢迎指出。
-
-如果对你还有些帮助，嘿嘿嘿
 
 - BTC：  1KGP4Pu6QuZ12X67KmMReG13cjx56d6LwT
